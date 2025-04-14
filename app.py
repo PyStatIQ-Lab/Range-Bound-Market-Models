@@ -17,7 +17,7 @@ def fetch_stock_data(symbol):
             return None
         df.dropna(inplace=True)
         return df
-    except Exception as e:
+    except Exception:
         return None
 
 # Bollinger Bands Reversal Model
@@ -36,7 +36,7 @@ def bollinger_bands_signal(df):
 # RSI Mean Reversion Model
 def rsi_signal(df):
     rsi_series = ta.momentum.RSIIndicator(close=df['Close'], window=14).rsi()
-    rsi_value = rsi_series.iloc[-1]
+    rsi_value = float(rsi_series.iloc[-1])
 
     if rsi_value < 30:
         return "Buy (RSI Mean Reversion)"
