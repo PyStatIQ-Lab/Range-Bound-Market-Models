@@ -22,14 +22,14 @@ def fetch_stock_data(symbol):
 
 # Bollinger Bands Reversal Model
 def bollinger_bands_signal(df):
-    indicator_bb = ta.volatility.BollingerBands(close=df['Close'], window=20, window_dev=2)
-    bb_bbh = indicator_bb.bollinger_hband()
-    bb_bbl = indicator_bb.bollinger_lband()
+    bb = ta.volatility.BollingerBands(close=df['Close'], window=20, window_dev=2)
+    bb_high = bb.bollinger_hband().astype(float)
+    bb_low = bb.bollinger_lband().astype(float)
     close = df['Close']
 
-    if close.iloc[-1] < bb_bbl.iloc[-1]:
+    if close.iloc[-1] < bb_low.iloc[-1]:
         return "Buy (Bollinger Reversal)"
-    elif close.iloc[-1] > bb_bbh.iloc[-1]:
+    elif close.iloc[-1] > bb_high.iloc[-1]:
         return "Sell (Bollinger Reversal)"
     return None
 
@@ -37,7 +37,6 @@ def bollinger_bands_signal(df):
 def rsi_signal(df):
     rsi_series = ta.momentum.RSIIndicator(close=df['Close'], window=14).rsi()
     rsi_value = float(rsi_series.iloc[-1])
-
     if rsi_value < 30:
         return "Buy (RSI Mean Reversion)"
     elif rsi_value > 70:
@@ -49,15 +48,12 @@ def stochastic_signal(df):
     stoch = ta.momentum.StochasticOscillator(
         high=df['High'], low=df['Low'], close=df['Close'], window=14, smooth_window=3
     )
-    k = stoch.stoch()
-    d = stoch.stoch_signal()
+    k = stoch.stoch().astype(float)
+    d = stoch.stoch_signal().astype(float)
 
-    k_last = float(k.iloc[-1])
-    d_last = float(d.iloc[-1])
-
-    if k_last < 20 and d_last < 20:
+    if k.iloc[-1] < 20 and d.iloc[-1] < 20:
         return "Buy (Stochastic)"
-    elif k_last > 80 and d_last > 80:
+    elif k.iloc[-1] > 80 and d.iloc[-1] > 80:
         return "Sell (Stochastic)"
     return None
 
@@ -66,8 +62,8 @@ def keltner_signal(df):
     kc = ta.volatility.KeltnerChannel(
         high=df['High'], low=df['Low'], close=df['Close'], window=20
     )
-    upper = kc.keltner_channel_hband()
-    lower = kc.keltner_channel_lband()
+    upper = kc.keltner_channel_hband().astype(float)
+    lower = kc.keltner_channel_lband().astype(float)
     close = df['Close']
 
     if close.iloc[-1] < lower.iloc[-1]:
@@ -84,9 +80,13 @@ def analyze_stock(symbol):
 
     signals = []
     for model in [bollinger_bands_signal, rsi_signal, stochastic_signal, keltner_signal]:
-        signal = model(df)
-        if signal:
-            signals.append(signal)
+        try:
+            signal = model(df)
+            if signal:
+                signals.append(signal)
+        except Exception as e:
+            print(f"Error analyzing {symbol} with {model.__name__}: {e}")
+            continue
 
     if signals:
         return {"Symbol": symbol, "Signals": signals}
