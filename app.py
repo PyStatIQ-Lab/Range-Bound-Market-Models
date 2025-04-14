@@ -15,62 +15,80 @@ def fetch_stock_data(symbol):
         df = yf.download(symbol, period='3mo', interval='1d', progress=False)
         if df.empty:
             return None
-        df.dropna(inplace=True)
+        df = df[['Open', 'High', 'Low', 'Close', 'Volume']].dropna()
         return df
     except Exception:
         return None
 
 # Bollinger Bands Reversal Model
 def bollinger_bands_signal(df):
-    bb = ta.volatility.BollingerBands(close=df['Close'], window=20, window_dev=2)
-    bb_high = bb.bollinger_hband().astype(float)
-    bb_low = bb.bollinger_lband().astype(float)
-    close = df['Close']
+    try:
+        bb = ta.volatility.BollingerBands(close=df['Close'], window=20, window_dev=2)
+        bb_high = pd.Series(bb.bollinger_hband()).squeeze()
+        bb_low = pd.Series(bb.bollinger_lband()).squeeze()
+        close = df['Close'].squeeze()
 
-    if close.iloc[-1] < bb_low.iloc[-1]:
-        return "Buy (Bollinger Reversal)"
-    elif close.iloc[-1] > bb_high.iloc[-1]:
-        return "Sell (Bollinger Reversal)"
-    return None
+        if close.iloc[-1] < bb_low.iloc[-1]:
+            return "Buy (Bollinger Reversal)"
+        elif close.iloc[-1] > bb_high.iloc[-1]:
+            return "Sell (Bollinger Reversal)"
+        return None
+    except Exception as e:
+        raise RuntimeError(f"Bollinger error: {e}")
 
 # RSI Mean Reversion Model
 def rsi_signal(df):
-    rsi_series = ta.momentum.RSIIndicator(close=df['Close'], window=14).rsi()
-    rsi_value = float(rsi_series.iloc[-1])
-    if rsi_value < 30:
-        return "Buy (RSI Mean Reversion)"
-    elif rsi_value > 70:
-        return "Sell (RSI Mean Reversion)"
-    return None
+    try:
+        rsi = pd.Series(ta.momentum.RSIIndicator(close=df['Close'], window=14).rsi()).squeeze()
+        rsi_value = float(rsi.iloc[-1])
+        if rsi_value < 30:
+            return "Buy (RSI Mean Reversion)"
+        elif rsi_value > 70:
+            return "Sell (RSI Mean Reversion)"
+        return None
+    except Exception as e:
+        raise RuntimeError(f"RSI error: {e}")
 
 # Stochastic Oscillator Model
 def stochastic_signal(df):
-    stoch = ta.momentum.StochasticOscillator(
-        high=df['High'], low=df['Low'], close=df['Close'], window=14, smooth_window=3
-    )
-    k = stoch.stoch().astype(float)
-    d = stoch.stoch_signal().astype(float)
-
-    if k.iloc[-1] < 20 and d.iloc[-1] < 20:
-        return "Buy (Stochastic)"
-    elif k.iloc[-1] > 80 and d.iloc[-1] > 80:
-        return "Sell (Stochastic)"
-    return None
+    try:
+        stoch = ta.momentum.StochasticOscillator(
+            high=df['High'].squeeze(), 
+            low=df['Low'].squeeze(), 
+            close=df['Close'].squeeze(), 
+            window=14, 
+            smooth_window=3
+        )
+        k = pd.Series(stoch.stoch()).squeeze()
+        d = pd.Series(stoch.stoch_signal()).squeeze()
+        if k.iloc[-1] < 20 and d.iloc[-1] < 20:
+            return "Buy (Stochastic)"
+        elif k.iloc[-1] > 80 and d.iloc[-1] > 80:
+            return "Sell (Stochastic)"
+        return None
+    except Exception as e:
+        raise RuntimeError(f"Stochastic error: {e}")
 
 # Keltner Channel Reversal Model
 def keltner_signal(df):
-    kc = ta.volatility.KeltnerChannel(
-        high=df['High'], low=df['Low'], close=df['Close'], window=20
-    )
-    upper = kc.keltner_channel_hband().astype(float)
-    lower = kc.keltner_channel_lband().astype(float)
-    close = df['Close']
+    try:
+        kc = ta.volatility.KeltnerChannel(
+            high=df['High'].squeeze(), 
+            low=df['Low'].squeeze(), 
+            close=df['Close'].squeeze(), 
+            window=20
+        )
+        upper = pd.Series(kc.keltner_channel_hband()).squeeze()
+        lower = pd.Series(kc.keltner_channel_lband()).squeeze()
+        close = df['Close'].squeeze()
 
-    if close.iloc[-1] < lower.iloc[-1]:
-        return "Buy (Keltner Reversal)"
-    elif close.iloc[-1] > upper.iloc[-1]:
-        return "Sell (Keltner Reversal)"
-    return None
+        if close.iloc[-1] < lower.iloc[-1]:
+            return "Buy (Keltner Reversal)"
+        elif close.iloc[-1] > upper.iloc[-1]:
+            return "Sell (Keltner Reversal)"
+        return None
+    except Exception as e:
+        raise RuntimeError(f"Keltner error: {e}")
 
 # Analyze a single stock
 def analyze_stock(symbol):
@@ -79,7 +97,9 @@ def analyze_stock(symbol):
         return None
 
     signals = []
-    for model in [bollinger_bands_signal, rsi_signal, stochastic_signal, keltner_signal]:
+    models = [bollinger_bands_signal, rsi_signal, stochastic_signal, keltner_signal]
+
+    for model in models:
         try:
             signal = model(df)
             if signal:
@@ -96,13 +116,11 @@ def analyze_stock(symbol):
 st.title("📊 Range-Bound Market Signal Analyzer")
 st.write("This app analyzes stock tickers from an Excel sheet using reversal-based technical models.")
 
-# Upload and select Excel sheet
 excel_file = "stocklist.xlsx"
 stock_sheets = load_excel_sheets(excel_file)
 selected_sheet = st.selectbox("Select Stock List", stock_sheets)
 analyze_button = st.button("Analyze Stocks")
 
-# Main analysis logic
 if analyze_button:
     try:
         stock_df = pd.read_excel(excel_file, sheet_name=selected_sheet)
