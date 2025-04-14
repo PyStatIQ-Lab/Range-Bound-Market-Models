@@ -23,44 +23,56 @@ def fetch_stock_data(symbol):
 # Bollinger Bands Reversal Model
 def bollinger_bands_signal(df):
     indicator_bb = ta.volatility.BollingerBands(close=df['Close'], window=20, window_dev=2)
-    df['bb_bbm'] = indicator_bb.bollinger_mavg()
-    df['bb_bbh'] = indicator_bb.bollinger_hband()
-    df['bb_bbl'] = indicator_bb.bollinger_lband()
-    
-    if df['Close'].iloc[-1] < df['bb_bbl'].iloc[-1]:
+    bb_bbh = indicator_bb.bollinger_hband()
+    bb_bbl = indicator_bb.bollinger_lband()
+    close = df['Close']
+
+    if close.iloc[-1] < bb_bbl.iloc[-1]:
         return "Buy (Bollinger Reversal)"
-    elif df['Close'].iloc[-1] > df['bb_bbh'].iloc[-1]:
+    elif close.iloc[-1] > bb_bbh.iloc[-1]:
         return "Sell (Bollinger Reversal)"
     return None
 
 # RSI Mean Reversion Model
 def rsi_signal(df):
-    rsi = ta.momentum.RSIIndicator(close=df['Close'], window=14).rsi()
-    if rsi.iloc[-1] < 30:
+    rsi_series = ta.momentum.RSIIndicator(close=df['Close'], window=14).rsi()
+    rsi_value = rsi_series.iloc[-1]
+
+    if rsi_value < 30:
         return "Buy (RSI Mean Reversion)"
-    elif rsi.iloc[-1] > 70:
+    elif rsi_value > 70:
         return "Sell (RSI Mean Reversion)"
     return None
 
 # Stochastic Oscillator Model
 def stochastic_signal(df):
-    stoch = ta.momentum.StochasticOscillator(high=df['High'], low=df['Low'], close=df['Close'], window=14, smooth_window=3)
+    stoch = ta.momentum.StochasticOscillator(
+        high=df['High'], low=df['Low'], close=df['Close'], window=14, smooth_window=3
+    )
     k = stoch.stoch()
     d = stoch.stoch_signal()
-    if k.iloc[-1] < 20 and d.iloc[-1] < 20:
+
+    k_last = float(k.iloc[-1])
+    d_last = float(d.iloc[-1])
+
+    if k_last < 20 and d_last < 20:
         return "Buy (Stochastic)"
-    elif k.iloc[-1] > 80 and d.iloc[-1] > 80:
+    elif k_last > 80 and d_last > 80:
         return "Sell (Stochastic)"
     return None
 
 # Keltner Channel Reversal Model
 def keltner_signal(df):
-    kc = ta.volatility.KeltnerChannel(high=df['High'], low=df['Low'], close=df['Close'], window=20)
+    kc = ta.volatility.KeltnerChannel(
+        high=df['High'], low=df['Low'], close=df['Close'], window=20
+    )
     upper = kc.keltner_channel_hband()
     lower = kc.keltner_channel_lband()
-    if df['Close'].iloc[-1] < lower.iloc[-1]:
+    close = df['Close']
+
+    if close.iloc[-1] < lower.iloc[-1]:
         return "Buy (Keltner Reversal)"
-    elif df['Close'].iloc[-1] > upper.iloc[-1]:
+    elif close.iloc[-1] > upper.iloc[-1]:
         return "Sell (Keltner Reversal)"
     return None
 
